@@ -1,0 +1,19 @@
+[flake8]
+max-line-length = 120
+
+# Keep the complexity ceiling generous: RPA flows are long but flat.
+max-complexity = 12
+
+exclude =
+    .git,
+    __pycache__,
+    .pytest_cache,
+    output,
+    temp,
+    devdata/work-items-out,
+    .venv,
+    venv
+
+# E203: whitespace before ':', which black deliberately produces on slices.
+# W503: line break before a binary operator, now the preferred style.
+extend-ignore = E203, W503

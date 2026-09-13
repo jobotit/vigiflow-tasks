@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Derived from the real daily report and confirmed field by field with the people who run it.",
+    "Keyed by column letter because that is the fixed thing in the sheet, and because columns",
+    "M, N and O share the same header text and could not be told apart by name.",
+    "",
+    "source values:",
+    "  field    read from VigiFlow, per report. 'name' must exist in the export reader's output.",
+    "  list     one field holding several values, spread one per column by 'index'.",
+    "  sequence the running N. counter, assigned by the producer.",
+    "  run      constant for the whole run, supplied by the task.",
+    "",
+    "type values: text (default), date, int, digits, auto.",
+    "  digits keeps leading zeros: PE-PERULAB-00009 must stay 00009, not become 9."
+  ],
+  "mode": "rows",
+  "sheet": "Hoja1",
+  "header_row": 1,
+  "start_row": 2,
+  "style_row": 2,
+  "columns": {
+    "A": { "source": "run", "name": "validation_date", "type": "date", "header": "FECHA DE VALIDACION vigiflow" },
+    "B": { "source": "field", "name": "fecha_recepcion_reciente", "type": "date", "header": "FECha de recepcion inicial vigiflow (virtual)" },
+    "C": { "source": "field", "name": "fecha_notificacion", "type": "date", "header": "FECHA DE NOT." },
+    "D": { "source": "sequence", "name": "numero", "type": "int", "header": "N." },
+    "E": { "source": "field", "name": "eess", "type": "text", "header": "EESS." },
+    "F": { "source": "field", "name": "tipo_reporte", "type": "text", "header": "RAM / TAB / VIH / ESAVI" },
+    "G": { "source": "field", "name": "ev", "type": "auto", "header": "EV." },
+    "H": { "source": "field", "name": "id_codigo", "type": "digits", "header": "ID CODIGO" },
+    "I": { "source": "field", "name": "codigo_ipress", "type": "text", "header": "vigiflow ( codigo asignado por la ipres)" },
+    "J": { "source": "field", "name": "paciente", "type": "text", "header": "PACIENTE" },
+    "K": { "source": "list", "name": "medicamentos_sospechosos", "index": 0, "type": "text", "header": "MEDICAMENTO SOSPECHOSO" },
+    "L": { "source": "list", "name": "medicamentos_sospechosos", "index": 1, "type": "text", "header": "MEDICAMENTO SOSPECHOSO2" },
+    "M": { "source": "list", "name": "medicamentos_sospechosos", "index": 2, "type": "text", "header": "MEDICAMENTO SOSPECHOSO" },
+    "N": { "source": "list", "name": "medicamentos_sospechosos", "index": 3, "type": "text", "header": "MEDICAMENTO SOSPECHOSO" },
+    "O": { "source": "list", "name": "medicamentos_sospechosos", "index": 4, "type": "text", "header": "MEDICAMENTO SOSPECHOSO" },
+    "P": { "source": "field", "name": "gravedad", "type": "text", "header": "GRAVEDAD" }
+  }
+}

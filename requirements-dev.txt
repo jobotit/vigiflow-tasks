@@ -1,0 +1,5 @@
+# Development-only tooling. Deliberately NOT in conda.yaml: that file builds the
+# environment every Control Room run uses, and a linter has no business there.
+flake8==7.3.0
+pytest==9.1.1
+openpyxl==3.1.5

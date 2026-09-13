@@ -1,0 +1,13 @@
+# Environment for the VigiFlow -> Excel task package.
+# Format reference: https://github.com/robocorp/rcc/blob/master/docs/recipes.md#what-is-in-condayaml
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.13.15                 # https://pyreadiness.org/3.13
+  - uv=0.10.9                      # https://pypi.org/project/uv
+  - pip:
+    - robocorp==3.1.3             # tasks, workitems, vault, log  https://pypi.org/project/robocorp
+    - robocorp-browser==2.4.0     # Playwright wrapper            https://pypi.org/project/robocorp-browser
+    - openpyxl==3.1.5             # Excel template filling        https://pypi.org/project/openpyxl

@@ -1,0 +1,13 @@
+{
+  "Vigiflow_C001_Credentials": {
+    "VIGIFLOW_URL": "https://vigiflow.example.org",
+    "VIGIFLOW_USERNAME": "replace-me",
+    "VIGIFLOW_PASSWORD": "replace-me",
+    "SMTP_HOST": "smtp.example.org",
+    "SMTP_PORT": "587",
+    "SMTP_SECURE": "false",
+    "SMTP_USERNAME": "replace-me",
+    "SMTP_PASSWORD": "replace-me",
+    "SMTP_FROM": "no-reply@example.org"
+  }
+}

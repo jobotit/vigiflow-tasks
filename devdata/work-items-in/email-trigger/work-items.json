@@ -1,0 +1,11 @@
+[
+  {
+    "payload": {
+      "reply_to": "analista@example.org",
+      "subject": "Reportes VigiFlow"
+    },
+    "files": {
+      "Links.xlsx": "Links.xlsx"
+    }
+  }
+]
