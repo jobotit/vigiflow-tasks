@@ -74,3 +74,31 @@ FIELD_NOTIFIER_STATE = "#reportersStateOrProvince_0"
 # another section replaces that part of the page.
 SECTION_PATIENT = "Paciente"
 TAB_NOTIFIER = "Información del notificador"
+
+# --- Dialogs --------------------------------------------------------------
+# VigiFlow's notice dialog, "Avisos / Información relevante", announces
+# maintenance windows. Confirmed on 14-09-2026: a mat-dialog with a single
+# "Ok" button carrying this id, covering the whole application with a
+# backdrop. It is the only dialog the robot closes; see vigiflow.dialogs.
+NOTICE_CLOSE = "#notifyUsersClose"
+DIALOG = "mat-dialog-container, .mat-mdc-dialog-container"
+DIALOG_TITLE = "[mat-dialog-title], .mat-mdc-dialog-title, h1, h2"
+
+# --- The ESAVI (AEFI) form ------------------------------------------------
+# Vaccine adverse events are kept on their own form, reached by
+# /aefiform/<guid> rather than /dataentry/<guid>. Confirmed on 14-09-2026: one
+# long page with every section present at once, and its own field ids, none
+# of them suffixed _0 on the notifier or the patient.
+AEFI_MARKER = "#aefiReportingIdNumber"             # only this form has it
+AEFI_REPORTING_ID = "#aefiReportingIdNumber"       # column I, and F by suffix
+AEFI_DATE_REPORT = "dateOfReport"                  # column C, a three-box date
+AEFI_PATIENT_INITIALS = "#patientInitials"         # column J; never #patientName
+AEFI_REPORTER_INSTITUTION = "#reportersInstitution"  # column E
+AEFI_HEALTH_FACILITY = "#healthFacilityName"         # column E when the above is empty
+AEFI_REPORTER_CITY = "#reportersCity"              # column P, tried first
+AEFI_REPORTER_STATE = "#reportersStateOrProvince"
+AEFI_PATIENT_CITY = "#patientCity"                 # column P, where it was found
+AEFI_PATIENT_STATE = "#patientStateOrProvince"
+AEFI_VACCINE_NAME = "#nameOfVaccine_{index}"       # columns K to O, as reported
+AEFI_VACCINE_CODED = "#drugNameWHODrug_{index}"    # when the reported name is empty
+AEFI_VACCINE_ROLE = "#drugRole_{index}"            # "Sospechoso" for a suspect

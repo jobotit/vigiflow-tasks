@@ -82,11 +82,15 @@ class Causality:
         return self.filled > 0
 
 
-def read_causality(page, report_id: str = "") -> Causality:
-    """Open the Evaluación section and report whether causality was assessed."""
+def read_causality(page, report_id: str = "", open_section: bool = True) -> Causality:
+    """Report whether causality was assessed, opening the Evaluación section first.
+
+    ``open_section=False`` is for the ESAVI form, which shows every section at
+    once, so there is nothing to open and nothing should be clicked.
+    """
     result = Causality(report_id=report_id)
 
-    if not _open_section(page):
+    if open_section and not _open_section(page):
         result.note = f"could not open {SECTION_NAME!r}"
         return result
     result.section_found = True
@@ -106,7 +110,14 @@ def read_causality(page, report_id: str = "") -> Causality:
 
 
 def _open_section(page) -> bool:
+    from vigiflow_tasks.vigiflow.dialogs import blocking_dialog, dismiss_notices
     from vigiflow_tasks.vigiflow.safety import UnsafeClick, safe_click
+
+    # Same reasoning as the report scraper: close a VigiFlow notice, and do not
+    # wait out click timeouts behind any other dialog.
+    dismiss_notices(page)
+    if blocking_dialog(page):
+        return False
 
     for selector in (f"text={SECTION_NAME}", f"[role=tab]:text-is({SECTION_NAME!r})"):
         try:

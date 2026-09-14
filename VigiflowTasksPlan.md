@@ -726,6 +726,88 @@ four blocks of four, and pasted in as shown the spaces produce the same 535.
 
 ---
 
+## 0n. The notice dialog, and four columns that came back empty
+
+A run on 14-09-2026 over a list of 20 links returned a workbook with columns E,
+G, J and P empty on all 20 rows. Only the last column looked wrong at first
+glance, but the pattern across all sixteen columns pointed at one cause:
+
+| Column | Filled | Where it is read |
+| --- | --- | --- |
+| E, J, P, G | 0 of 20 | a section opened by a click |
+| B, H, I | 20 of 20 | on screen when the report loads |
+| K | 19 of 20 | the sidebar, on screen when the report loads |
+
+K being filled also ruled out a language change, since the sidebar is read by
+its Spanish heading.
+
+The cause was a WHO-UMC maintenance notice, "Avisos / Información relevante",
+announcing downtime from 03:00 to 06:00 UTC on 15-09-2026. It is a mat-dialog
+with one "Ok" button, `#notifyUsersClose`, and a backdrop over the whole
+application. A diagnostic run saw it after sign-in and again on a report page
+before anyone had clicked it, so every section click landed on the backdrop and
+waited out its timeout.
+
+**The fix** closes that notice, and only that notice, by its button id and
+through the safety guard: after sign-in, after each report loads, and before
+each section click. Any other dialog is left alone and reported by title,
+because the robot cannot know what an unknown dialog's button does.
+
+**The lesson** was that the run failed silently. A section that could not be
+opened produced an empty cell, which is indistinguishable from a report that
+genuinely has nothing there. Rows with an unopened section are now counted in
+the run log and named in the reply, together with the title of any dialog
+covering the page, and a section behind a dialog is reported unopened at once
+instead of costing a minute of timeouts per report.
+
+---
+
+## 0o. ESAVI reports, on a form of their own
+
+The same list held one link of a new shape, `/aefiform/<guid>`. It is
+VigiFlow's ESAVI form for vaccine adverse events, and its row came back with
+only the dates, the identifier and a fallback in column I.
+
+A read-only look at the form, reporting only whether fields were filled and
+equal, settled most of the mapping:
+
+- **No report title**, but `aefiReportingIdNumber` has the title's exact shape,
+  "A-99 AAA AAAAAA AAAAA" against "A-99 AAA AAA AAA", ending in ESAVI. It is the
+  same establishment-assigned code, so it fills I, and F through its suffix.
+- **The patient is `patientInitials`.** The form also has `patientName`, which is
+  never read, because the workbook carries a nickname only.
+- **Severity was in `patientCity`**, while the notifier's address was empty.
+- **Vaccines are `nameOfVaccine_N`**, with a role. On the ICSR form the sidebar
+  drug name turned out to be exactly `medicinalProductNameAsReportedByThePrimarySource_0`,
+  the name as reported, so the reported vaccine name is its counterpart.
+- **The report date is `dateOfReport`**, empty on this report.
+
+The form is one page with every section present, and its headings carry "add"
+controls, so the ESAVI path reads every field by id and clicks nothing.
+
+Two choices could not be settled from the data, and are listed under open
+questions.
+
+---
+
+## 0p. The reply in Spanish, in Lima time
+
+The client asked for the reply in Spanish and in Lima's time zone. Everything
+that reaches the analyst is now Spanish: the subject, the sender's name, the
+summary, the broken-link notices and their details, the notes, and the
+screenshot filenames, which arrive as attachments. Times are converted from the
+UTC the process records to America/Lima and labelled with the zone.
+
+The validation date moved to Lima too. It had come from the worker's clock, and
+a UTC worker's date turns over at 19:00 in Lima, which would have stamped the
+next day into column A and the filename for five hours every evening.
+
+Peru has kept UTC-05:00 all year since 1994, so where Python has no time zone
+database a fixed offset is used and is exact. Operator-facing text, the run log
+and Control Room's exception messages, stays in English.
+
+---
+
 ## 1. The process as automated
 
 Today an analyst signs in to VigiFlow, opens each report on their list, and
@@ -1053,6 +1135,15 @@ modified date.
 3. **The EV correlative starts at 1 each run.** The business called the number
    arbitrary, so that is the default. If it should continue across runs the
    way column D's correlative does, it needs a value supplied per run.
+4. **EESS. on an ESAVI report.** The form has the notifier's institution and a
+   health facility, and on the one report checked they differ. The robot uses
+   the institution, as the counterpart of the notifier's organisation on an
+   ICSR, and the facility only when the institution is empty. Say if EESS.
+   should be the facility instead.
+5. **EV on an ESAVI report.** The rule is that the clinic's assessment decides
+   S/E. The ESAVI form has no clinic assessment, only the authority's
+   "Evaluación de causalidad", and the robot currently reads that one. Say
+   whether that is right, or whether ESAVI rows should always take a number.
 
 ---
 

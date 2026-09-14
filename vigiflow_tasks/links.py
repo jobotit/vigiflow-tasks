@@ -3,8 +3,12 @@
 The file is a single column of links:
 
     Links
-    https://vigiflow.who-umc.org/dataentry/<guid>
+    https://vigiflow.who-umc.org/dataentry/<guid>    an ICSR
+    https://vigiflow.who-umc.org/aefiform/<guid>     an ESAVI report
     ...
+
+Both addresses are report links. The scraper tells the two forms apart once
+the page has loaded, so nothing here needs to know which is which.
 
 Every non-blank row becomes a transaction, including the rows that are not
 usable links. That is deliberate. A row quietly dropped here is a report the
@@ -48,9 +52,10 @@ HEADER_NAMES = ("links", "link", "url", "enlace", "enlaces")
 # wording matches the one the consumer uses for a link that opened but turned
 # out not to be a report, because to the person reading the email they are the
 # same problem.
-NOT_A_REPORT = "The link provided is broken or is not related to a report."
-NOT_A_LINK_DETAIL = "The cell is not a VigiFlow address, so there was nothing to open."
-NOT_A_REPORT_DETAIL = "The page it opens is not a report."
+# In Spanish, because these reach the analyst in the reply.
+NOT_A_REPORT = "El enlace proporcionado está roto o no corresponde a un reporte."
+NOT_A_LINK_DETAIL = "La celda no contiene una dirección de VigiFlow, así que no había nada que abrir."
+NOT_A_REPORT_DETAIL = "La página que abre no es un reporte."
 
 # How much of an unusable cell is quoted back. Enough to recognise the row,
 # short enough that a cell holding something long does not fill the email.
