@@ -808,6 +808,26 @@ and Control Room's exception messages, stays in English.
 
 ---
 
+## 0q. Two execution modes
+
+For a list of a few dozen links the three Control Room steps spent more time
+starting environments than reading reports, since every step starts its own.
+The process now also runs as one task, `Single run`, which starts once, signs in
+once, reads every row in one browser session, and replies from the same
+process. The three steps stay available.
+
+The two shapes are not two implementations. Starting a run, reading a row and
+finishing a run are shared functions in `tasks.py`; the three-step shape passes
+rows between them as work items, and the single task passes them in memory.
+So the workbook and the reply are the same either way.
+
+What the single task gives up is what Control Room can see. There are no work
+items per link, so a bad link is not its own exception and cannot be retried on
+its own, and a run that fails midway keeps nothing it had read. For short lists
+that trade is worth making; for long ones the three steps remain the better fit.
+
+---
+
 ## 1. The process as automated
 
 Today an analyst signs in to VigiFlow, opens each report on their list, and

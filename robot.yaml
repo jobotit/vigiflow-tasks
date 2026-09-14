@@ -1,11 +1,20 @@
 # Sema4.ai Task Package manifest.
 # Format reference: https://github.com/robocorp/rcc/blob/master/docs/recipes.md#what-is-in-robotyaml
 #
-# The process is triggered by email. The producer reads the attached list of
-# report links, the consumer reads one report per work item, and the reporter
-# writes the workbook and emails it back to the sender.
+# The process is triggered by email and replies with the workbook. It can run
+# in either of two shapes, sharing the same code:
+#
+#   Single run                     everything in one task. One environment
+#                                  start-up and one sign-in; the quicker way
+#                                  to a reply for a short list.
+#
+#   Producer, Consumer, Reporter   three steps, one work item per link, so
+#                                  each link is its own transaction and a bad
+#                                  one is its own exception in Control Room.
 
 tasks:
+  Single run:
+    shell: python -m robocorp.tasks run tasks.py -t email_single_run
   Producer:
     shell: python -m robocorp.tasks run tasks.py -t email_producer
   Consumer:
