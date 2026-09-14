@@ -12,11 +12,18 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 DEFAULT_TEMPLATE = "reportes_vigiflow.xlsx"
+# The client works in Lima. Every date and time the robot shows people is in
+# this zone, whatever clock the worker running it keeps.
+DEFAULT_TIMEZONE = "America/Lima"
+# Peru has kept UTC-05:00 all year since 1994, so a fixed offset is an exact
+# stand-in when the time zone database is not installed, which is the default
+# for Python on Windows and for some slim Linux images.
+LIMA_FIXED = timezone(timedelta(hours=-5), "Lima")
 # The Control Room vault item holding the VigiFlow url, username and password.
 DEFAULT_VAULT_SECRET = "Vigiflow_C001_Credentials"
 RESOURCES_DIR = Path(__file__).resolve().parent.parent / "resources"
@@ -95,18 +102,42 @@ def resolve_start_number(payload: dict[str, Any] | None = None) -> int:
     return value
 
 
+def local_timezone():
+    """The client's time zone, for every date and time the robot shows people.
+
+    Workers usually keep UTC. Taken from the worker's clock, today's date is
+    already tomorrow in UTC from 19:00 in Lima, which would stamp the wrong day
+    into column A, the filename and the reply for five hours every evening.
+
+    Set VIGIFLOW_TIMEZONE to an IANA name to use another zone. An unknown name
+    is an error rather than a quiet fallback to Lima, because a wrong zone
+    shifts every date without anything looking wrong.
+    """
+    name = _env("VIGIFLOW_TIMEZONE") or DEFAULT_TIMEZONE
+    try:
+        from zoneinfo import ZoneInfo
+
+        return ZoneInfo(name)
+    except Exception as err:
+        if name == DEFAULT_TIMEZONE:
+            return LIMA_FIXED
+        raise ConfigError(
+            f"Unknown time zone {name!r}, or the time zone database is not installed"
+        ) from err
+
+
 def resolve_validation_date(payload: dict[str, Any] | None = None) -> date:
     """The date written into every row of column A, and used in the filename.
 
-    Defaults to today, which is what a run scheduled for the day it reports
-    should use. Set it explicitly to rerun a past day.
+    Defaults to today in the client's time zone, which is what a run for the
+    day it reports should use. Set it explicitly to rerun a past day.
     """
     raw = _first_given(
         (payload or {}).get("validation_date", _MISSING),
         _env("VIGIFLOW_VALIDATION_DATE"),
     )
     if raw is _MISSING or raw in (None, ""):
-        return date.today()
+        return datetime.now(local_timezone()).date()
     if isinstance(raw, datetime):
         return raw.date()
     if isinstance(raw, date):

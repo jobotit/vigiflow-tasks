@@ -15,12 +15,16 @@ import logging
 from vigiflow_tasks.config import VigiFlowConfig
 from vigiflow_tasks.vigiflow import locators as loc
 from vigiflow_tasks.vigiflow.base import VigiFlowError
+from vigiflow_tasks.vigiflow.dialogs import dismiss_notices
 
 LOGGER = logging.getLogger(__name__)
 
 # The redirect chain through the identity provider is slower than a page load,
 # and the application shell can take a while to paint after it.
 LOGIN_TIMEOUT_MS = 60_000
+# How long a notice gets to appear after sign-in. The application fetches its
+# notices once the shell has painted, so it can trail the page by a moment.
+NOTICE_WAIT_MS = 5_000
 
 
 class BrowserVigiFlowClient:
@@ -96,6 +100,7 @@ class BrowserVigiFlowClient:
 
         if not self.page.locator(loc.LOGIN_PASSWORD).count():
             LOGGER.info("Already signed in, the session was still valid")
+            dismiss_notices(self.page, wait_ms=NOTICE_WAIT_MS)
             return
 
         try:
@@ -119,6 +124,9 @@ class BrowserVigiFlowClient:
             ) from err
 
         self._wait_for_application()
+        # VigiFlow shows maintenance notices in a dialog that covers the whole
+        # application. Closed here so the first report opens onto a usable page.
+        dismiss_notices(self.page, wait_ms=NOTICE_WAIT_MS)
         LOGGER.info("Signed in to VigiFlow at %s", self.config.url)
 
     def _wait_for_application(self) -> None:

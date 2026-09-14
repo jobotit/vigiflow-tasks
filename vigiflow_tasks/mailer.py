@@ -15,10 +15,13 @@ import mimetypes
 import re
 import smtplib
 from dataclasses import dataclass
+from datetime import timezone
 from email.message import EmailMessage
 from email.utils import formataddr, parseaddr
 from pathlib import Path
 from typing import Any, Iterable
+
+from vigiflow_tasks.config import local_timezone
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +34,12 @@ DEFAULT_PORT = 587
 # What a link that is not a report is called in the reply. Kept here so the
 # wording is the same whether the producer rejected the cell or the consumer
 # opened it and found something that was not a report.
-BROKEN_LINK = "The link provided is broken or is not related to a report."
+BROKEN_LINK = "El enlace proporcionado está roto o no corresponde a un reporte."
+
+# The reply is for the client's analysts in Lima, so it is written in Spanish
+# and every time in it is Lima time. Labels are padded to this width so the
+# values line up in a plain-text mail client.
+LABEL_WIDTH = 22
 
 # Keys accepted in the vault item, in the order they are tried.
 HOST_KEYS = ("SMTP_HOST", "smtp_host", "host", "server")
@@ -221,7 +229,7 @@ def send_report(
 
     config = config or SmtpConfig.from_vault()
     message = EmailMessage()
-    message["From"] = formataddr(("VigiFlow automation", config.sender))
+    message["From"] = formataddr(("Automatización VigiFlow", config.sender))
     message["To"] = recipient
     if cc:
         message["Cc"] = cc
@@ -348,6 +356,26 @@ def check_connection(config: SmtpConfig) -> dict:
     return result
 
 
+def _local(moment):
+    """A moment in the client's time zone.
+
+    The process records its times in UTC. A value with no zone attached is
+    taken to be UTC too, rather than the clock of whichever worker ran it.
+    """
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(local_timezone())
+
+
+def _zone_label(moment) -> str:
+    """"Lima (UTC-05:00)", so the reader never has to wonder which clock."""
+    zone = moment.tzinfo
+    name = getattr(zone, "key", None) or str(zone)
+    place = name.split("/")[-1].replace("_", " ")
+    offset = moment.strftime("%z")
+    return f"{place} (UTC{offset[:3]}:{offset[3:]})"
+
+
 def format_summary(
     input_file: str,
     started,
@@ -356,52 +384,60 @@ def format_summary(
     written: int,
     failed: int,
     rows: int,
-    filename: str,
+    filename: str | None,
     notes: list[str] | None = None,
     broken: list[dict] | None = None,
 ) -> str:
-    """The short note that goes with the report.
+    """The short note that goes with the report, in Spanish and in Lima time.
 
     Says what was asked for, what came back, and how long it took, so the
     recipient can tell a complete run from a partial one without opening the
-    workbook.
+    workbook. Dates are written day first, as the business writes them in the
+    workbook's own filename.
 
     ``broken`` lists the rows that were not reports. Each is named by its row
     in the spreadsheet the analyst sent, which is the thing they can act on,
     and by the screenshot attached to this message where there is one.
     """
+    started, finished = _local(started), _local(finished)
     elapsed = finished - started
     minutes, seconds = divmod(int(elapsed.total_seconds()), 60)
     duration = f"{minutes} min {seconds} s" if minutes else f"{seconds} s"
 
+    def row(label, value):
+        return f"  {label:<{LABEL_WIDTH}}{value}"
+
     opening = (
-        "The VigiFlow report you asked for is attached."
+        "Adjuntamos el reporte de VigiFlow que solicitó."
         if rows
-        else "No report is attached: nothing in the list could be read."
+        else "No se adjunta ningún reporte: no se pudo leer ningún enlace de la lista."
     )
     lines = [
         opening,
         "",
-        f"  Input file      {input_file}",
-        f"  Links received  {requested}",
-        f"  Reports read    {written}",
+        row("Archivo recibido", input_file),
+        row("Enlaces recibidos", requested),
+        row("Reportes leídos", written),
     ]
     if failed:
-        lines.append(f"  Could not read  {failed}")
+        lines.append(row("No se pudieron leer", failed))
     lines += [
-        f"  Rows written    {rows}",
-        f"  Attached file   {filename}",
+        row("Filas escritas", rows),
+        row("Archivo adjunto", filename or "ninguno"),
         "",
-        f"  Started         {started:%Y-%m-%d %H:%M:%S}",
-        f"  Finished        {finished:%Y-%m-%d %H:%M:%S}",
-        f"  Duration        {duration}",
+        row("Inicio", f"{started:%d-%m-%Y %H:%M:%S}"),
+        row("Fin", f"{finished:%d-%m-%Y %H:%M:%S}"),
+        row("Duración", duration),
+        row("Zona horaria", _zone_label(started)),
     ]
 
     if broken:
-        lines += ["", f"{len(broken)} of the links could not be used:"]
+        count = len(broken)
+        heading = "1 enlace no se pudo usar:" if count == 1 else f"{count} enlaces no se pudieron usar:"
+        lines += ["", heading]
         for entry in broken:
             lines.append("")
-            lines.append(f"  Row {entry.get('row', '?')}   {BROKEN_LINK}")
+            lines.append(f"  Fila {entry.get('row', '?')}   {BROKEN_LINK}")
             value = str(entry.get("value") or "").strip()
             if value:
                 lines.append(f"          {value}")
@@ -410,9 +446,9 @@ def format_summary(
                 lines.append(f"          {detail}")
             shot = str(entry.get("screenshot") or "").strip()
             if shot:
-                lines.append(f"          Screenshot attached: {shot}")
+                lines.append(f"          Captura adjunta: {shot}")
 
     if notes:
-        lines += ["", "Notes:"] + [f"  - {n}" for n in notes]
-    lines += ["", "Sent automatically. Replies to this message are not read."]
+        lines += ["", "Observaciones:"] + [f"  - {n}" for n in notes]
+    lines += ["", "Mensaje enviado automáticamente. Las respuestas a este correo no se leen."]
     return "\n".join(lines)

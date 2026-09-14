@@ -173,8 +173,9 @@ def email_consumer() -> None:
     for each is the slowest thing the process could do.
     """
     output_dir = get_output_dir() or Path("output")
-    read = broken = 0
+    read = broken = partial = 0
     gaps: Counter = Counter()
+    blockers: Counter = Counter()
 
     with privacy.no_data_in_logs():
         with open_client("browser") as client:
@@ -208,7 +209,8 @@ def email_consumer() -> None:
                     # link does not lead to a report. The picture is the
                     # evidence, and it is of an error page rather than a case.
                     print(f"  row {row}: not a report")
-                    shot = screenshot(client.page, output_dir / f"link-row-{row}.png")
+                    # Named in Spanish because it is attached to the reply.
+                    shot = screenshot(client.page, output_dir / f"enlace-fila-{row}.png")
                     _queue_broken(payload, detail=NOT_A_REPORT_DETAIL, shot=shot)
                     broken += 1
                     item.fail(
@@ -218,7 +220,16 @@ def email_consumer() -> None:
                     continue
 
                 read += 1
-                print(f"  row {row}: read")
+                if scraped.unopened:
+                    # Read, but not completely, for a reason that is not the
+                    # report's. Counted so the reply can say so; without this
+                    # the workbook simply looks complete.
+                    partial += 1
+                    if scraped.blocked_by:
+                        blockers[scraped.blocked_by] += 1
+                    print(f"  row {row}: read, but {len(scraped.unopened)} sections could not be opened")
+                else:
+                    print(f"  row {row}: read")
                 # Counted rather than named per row, so the log says how
                 # complete the run was without saying which report lacked what.
                 for name in scraped.missing:
@@ -228,6 +239,8 @@ def email_consumer() -> None:
                     payload={
                         "report_id": scraped.report_id,
                         "fields": _jsonable(scraped.fields),
+                        "unopened": scraped.unopened,
+                        "blocked_by": scraped.blocked_by,
                         "position": payload.get("position"),
                         "source_row": row,
                         **{key: payload.get(key) for key in CONTEXT_KEYS},
@@ -236,6 +249,10 @@ def email_consumer() -> None:
                 item.done()
 
     print(f"Read {read} reports, {broken} links were not reports")
+    if partial:
+        print(f"  {partial} reports had a section that could not be opened")
+    for title, count in sorted(blockers.items()):
+        print(f"  {count} of them had a dialog covering the page: {title}")
     for name, count in sorted(gaps.items()):
         print(f"  {count} reports had no {name}")
 
@@ -302,9 +319,10 @@ def email_reporter() -> None:
         if rows:
             destination, unknown = _write_workbook(rows, output_dir)
             if unknown:
-                notes.append(
-                    f"{unknown} rows have no EV, because the causality could not be read."
-                )
+                notes.append(_no_ev_note(unknown))
+            incomplete = [r for r in rows if r.get("unopened")]
+            if incomplete:
+                notes.append(_incomplete_note(incomplete))
         else:
             print("No link in the list led to a report, so there is nothing to attach.")
 
@@ -350,6 +368,31 @@ def _write_workbook(rows: list[dict], output_dir: Path) -> tuple[Path, int]:
     return destination, sum(1 for value in ev.values() if value is None)
 
 
+def _incomplete_note(rows: list[dict]) -> str:
+    """Say plainly that some cells are empty because of VigiFlow, not the report.
+
+    Without this the workbook looks complete. On 14-09-2026 a notice dialog
+    covered every report page, and four columns came back empty on every row
+    with nothing in the reply to say so.
+    """
+    titles = sorted({str(r["blocked_by"]) for r in rows if r.get("blocked_by")})
+    count = len(rows)
+    subject = "1 fila está incompleta" if count == 1 else f"{count} filas están incompletas"
+    note = (
+        f"{subject}: no se pudo abrir una sección del reporte, por lo que EESS., "
+        "PACIENTE, GRAVEDAD y EV. pueden estar vacíos por un motivo ajeno al reporte."
+    )
+    if titles:
+        note += " Un aviso de VigiFlow cubría la página: " + "; ".join(titles) + "."
+    return note
+
+
+def _no_ev_note(count: int) -> str:
+    """Say in the reply how many rows have no EV, and why."""
+    subject = "1 fila no tiene" if count == 1 else f"{count} filas no tienen"
+    return f"{subject} EV. porque no se pudo leer la evaluación de causalidad."
+
+
 def _reply(context, finished, attachment, written, broken, notes, shots) -> None:
     """Send the summary, and say plainly in the log if it could not go."""
     import os
@@ -362,11 +405,11 @@ def _reply(context, finished, attachment, written, broken, notes, shots) -> None
         written=written,
         failed=len(broken),
         rows=written,
-        filename=attachment.name if attachment else "none",
+        filename=attachment.name if attachment else None,
         notes=notes,
         broken=broken,
     )
-    subject = f"VigiFlow report: {context.input_file}"
+    subject = f"Reporte de VigiFlow: {context.input_file}"
     # With a no-reply From, a Reply-To gives a person somewhere to write back
     # to. Left unset unless configured, because an unmonitored one is worse
     # than none.

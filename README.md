@@ -68,6 +68,26 @@ To rebuild the template after a layout change:
 uv run --with openpyxl python scripts/make_template_from_sample.py "path/to/report.xlsx"
 ```
 
+## The reply
+
+The client is in Lima, so the reply is written in Spanish and every time in it
+is Lima time, labelled "Lima (UTC-05:00)". The subject is "Reporte de VigiFlow"
+followed by the name of the spreadsheet the analyst sent, and the sender's name
+is "Automatización VigiFlow".
+
+The same zone decides the validation date in column A and in the workbook's
+name. Control Room workers usually keep UTC, where the date turns over at 19:00
+in Lima, so a date taken from the worker's clock would be tomorrow's for five
+hours every evening.
+
+Peru has had no daylight saving since 1994, so where the time zone database is
+missing, which is the default for Python on Windows, a fixed UTC-05:00 is used
+and is exact. Set `VIGIFLOW_TIMEZONE` to another IANA zone name to change it; an
+unknown name stops the run instead of quietly falling back.
+
+The run log and Control Room's exception messages stay in English. They are for
+whoever operates the robot, not for the analysts.
+
 ## Layout
 
 | Path | Purpose |
@@ -183,6 +203,29 @@ producer clears it. In Control Room it is the platform's storage, and its
 retention is a workspace setting rather than something a task should reach
 into.
 
+## VigiFlow notices
+
+VigiFlow announces maintenance in a dialog titled "Avisos / Información
+relevante", with a single "Ok" button. It covers the whole application with a
+backdrop, so while it is up every click lands on the backdrop instead of the
+control underneath.
+
+On 14-09-2026 that notice emptied four columns on every row of a run: EESS.,
+PACIENTE, GRAVEDAD and EV. Those are the columns read from a section the robot
+has to click open. The columns visible as soon as a report loads came back
+filled, so the workbook looked plausible and nothing said otherwise.
+
+The robot now closes that notice after signing in, after each report loads and
+before every section click. It closes it by the id of its own button, through
+the same safety guard as every other click, and it closes nothing else. Any
+other dialog is left where it is, because the robot cannot know what an
+unknown dialog's button does. VigiFlow's "El reporte no pudo ser encontrado"
+is one of those, and it is what a broken link's screenshot exists to show.
+
+If a section still cannot be opened, the row is not passed off as complete.
+The run log counts those rows, and the reply says how many are incomplete and
+names the dialog that was covering the page.
+
 ## Nothing is written to VigiFlow
 
 The report page opens as the data entry form, editable, with controls that
@@ -202,11 +245,12 @@ default.
 | Parameter | Environment variable | Default |
 | --- | --- | --- |
 | `start_number` | `VIGIFLOW_START_NUMBER` | 1 |
-| `validation_date` | `VIGIFLOW_VALIDATION_DATE` | today |
+| `validation_date` | `VIGIFLOW_VALIDATION_DATE` | today, in Lima |
 | `template` | `VIGIFLOW_TEMPLATE` | `reportes_vigiflow.xlsx` |
 | `links_file` | `VIGIFLOW_LINKS_FILE` | the trigger's attachment |
 | | `VIGIFLOW_HEADLESS` | `true` |
 | | `VIGIFLOW_TIMEOUT_MS` | 30000 |
+| | `VIGIFLOW_TIMEZONE` | `America/Lima` |
 
 `links_file` is only a fallback, for starting a run by hand with no email.
 
@@ -233,6 +277,26 @@ Four columns are rules the analysts apply rather than fields:
   cell reads `S/E`. When the clinic left it empty the cell takes the next
   number. When the assessment could not be read at all the cell is left blank,
   because a number there would claim the analyst did work nobody checked.
+
+### ESAVI reports
+
+Vaccine adverse events live on their own VigiFlow form, reached by an
+`/aefiform/<guid>` address instead of `/dataentry/<guid>`. The robot recognises
+that form by a field only it has, and reads it with its own field ids. The
+whole form is one page, so nothing on it is clicked.
+
+| Column | ICSR form | ESAVI form |
+| --- | --- | --- |
+| C, FECHA DE NOT. | `dateOfInitialReport` | `dateOfReport` |
+| E, EESS. | the notifier's organisation | the notifier's institution, else the health facility |
+| F, type | the end of the report title | the end of the ESAVI reporting id, else ESAVI |
+| I, IPRESS code | the report title | the ESAVI reporting id |
+| J, PACIENTE | `patientNameOrInitials` | `patientInitials`, never the full name |
+| K to O, suspect products | the sidebar, which shows the name as reported | each vaccine whose role is suspect, by name as reported |
+| P, GRAVEDAD | the notifier's city or province | the notifier's, else the patient's, city or province |
+
+Column EV uses the same rule on both forms. On the ESAVI form the only
+causality assessment is the authority's, which is an open question below.
 
 ## Running on Linux
 
