@@ -110,6 +110,32 @@ whoever operates the robot, not for the analysts.
 | `devdata/` | Local run configuration and a sample trigger |
 | `tests/` | Unit tests, no browser and no Control Room needed |
 
+## Two ways to run it
+
+The same code runs in either of two shapes, and `robot.yaml` offers both.
+
+| | Single run | Producer, Consumer, Reporter |
+| --- | --- | --- |
+| Environment start-ups per email | one | three |
+| Sign-ins to VigiFlow | one | one |
+| Work items per link | none | one each |
+| A bad link in Control Room | named in the reply and the run log | its own business exception |
+| Retry one link on its own | no | yes |
+| Rows kept if the run fails midway | none | every row already read |
+| Best for | short lists, when waiting matters | long lists, when traceability matters |
+
+Every Control Room step starts its own environment, and for a list of a few
+dozen links those start-ups take longer than reading the reports. The single
+task pays for one start-up, signs in once, and replies from the same process.
+It also skips the browser entirely when no row of the list is a usable link.
+
+Both shapes start a run, read a row and finish a run through the same
+functions, so the workbook and the reply are identical whichever one produced
+them. Choosing between them is a Control Room decision: a process with one step
+running `Single run`, or a process with three steps running `Producer`,
+`Consumer` and `Reporter` in that order, each with the email trigger on the
+first step.
+
 ## Run locally
 
 With the Sema4.ai VS Code extension: open the command palette, run
@@ -120,6 +146,8 @@ vault needs.
 From a terminal, the vault needs an account and a workspace:
 
 ```powershell
+rcc task run -t "Single run" -e devdata/env-for-single.json --account <account> --workspace <id>
+
 rcc task run -t Producer -e devdata/env-for-producer.json --account <account> --workspace <id>
 rcc task run -t Consumer -e devdata/env-for-consumer.json --account <account> --workspace <id>
 rcc task run -t Reporter -e devdata/env-for-reporter.json --account <account> --workspace <id>
